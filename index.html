@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telugu Learning App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Noto+Sans+Telugu:wght@400;600&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+
+        .page-container {
+            max-width: 90%;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .nav-bar {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            justify-content: space-around;
+            padding: 1rem 0;
+            margin-bottom: 2rem;
+            background-color: #fff;
+            border-radius: 9999px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            position: sticky;
+            top: 1rem;
+            z-index: 10;
+        }
+
+        .nav-button {
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .nav-button.active {
+            background-color: #4f46e5;
+            color: #ffffff;
+        }
+
+        .flashcard-container {
+            perspective: 1000px;
+            width: 100%;
+            max-width: 500px;
+            height: 300px;
+            position: relative;
+            margin-bottom: 2rem;
+            cursor: pointer;
+        }
+
+        .flashcard {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            border-radius: 1.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .flashcard.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .flashcard-front,
+        .flashcard-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 1.5rem;
+            padding: 2rem;
+        }
+
+        .flashcard-front {
+            background-color: #ffffff;
+            color: #1f2937;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .flashcard-back {
+            background-color: #6366f1;
+            color: #ffffff;
+            transform: rotateY(180deg);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .telugu-script {
+            font-family: 'Noto Sans Telugu', sans-serif;
+            font-size: 2.5rem;
+        }
+
+        .romanized-text {
+            font-size: 1.5rem;
+        }
+
+        .button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            transition: background-color 0.3s, transform 0.1s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .button:active {
+            transform: scale(0.98);
+        }
+
+        .primary-button {
+            background-color: #4f46e5;
+            color: #ffffff;
+        }
+
+        .primary-button:hover {
+            background-color: #4338ca;
+        }
+
+        .secondary-button {
+            background-color: #e5e7eb;
+            color: #1f2937;
+        }
+
+        .secondary-button:hover {
+            background-color: #d1d5db;
+        }
+
+        .back-button {
+            background: none;
+            border: none;
+            color: #4f46e5;
+            font-weight: 600;
+            padding: 0;
+            margin-bottom: 1rem;
+            align-self: flex-start;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .back-button:hover {
+            color: #4338ca;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+
+        .input-group label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .input-group input,
+        .input-group textarea {
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid #d1d5db;
+        }
+
+        .page {
+            display: none;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .page.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .google-signin-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #ffffff;
+            color: #1f2937;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s, transform 0.1s;
+            cursor: pointer;
+        }
+
+        .google-signin-button:hover {
+            background-color: #f3f4f6;
+        }
+
+        .code-container {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #e5e7eb;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            letter-spacing: 0.2rem;
+            user-select: all;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page-container">
+        <h1 class="text-4xl font-extrabold text-gray-900 mb-6 text-center">Telugu Learning App</h1>
+        <p class="text-xs text-gray-400 mb-4">User ID: <span id="user-id"></span></p>
+
+        <!-- Navigation Bar -->
+        <div id="nav-bar" class="nav-bar hidden">
+            <button id="nav-student" class="nav-button">Home</button>
+            <button id="nav-flashcard" class="nav-button">Flashcards</button>
+            <button id="nav-teacher-portal" class="nav-button hidden">Teacher Portal</button>
+            <button id="nav-progress" class="nav-button">Progress</button>
+        </div>
+
+        <!-- Authentication Page -->
+        <div id="auth-page" class="page active">
+            <h2 class="text-2xl font-bold mb-4 text-center">Welcome! Are you a...</h2>
+            <div class="flex gap-4">
+                <button id="student-button" class="button primary-button w-full">Student</button>
+                <button id="teacher-button" class="button primary-button w-full">Teacher</button>
+            </div>
+        </div>
+
+        <!-- Student Sign-in Page -->
+        <div id="student-sign-in-page" class="page">
+            <button id="back-to-auth-student-button" class="back-button">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M15.41 7.41L14 6L8 12L14 18L15.41 16.59L10.83 12L15.41 7.41Z" />
+                </svg>
+                Back
+            </button>
+            <h2 class="text-2xl font-bold mb-4 text-center">Student Sign In</h2>
+            <p class="text-lg text-gray-700 mb-6 text-center">Sign in to save your progress and enroll in a class.</p>
+            <button id="google-signin-student-button" class="google-signin-button mt-4">
+                <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12.24 10.285V14.4h6.866c-.282 1.9-1.928 4.67-6.866 4.67-4.113 0-7.46-3.35-7.46-7.46s3.347-7.46 7.46-7.46c2.42 0 4.026.96 4.945 1.848l3.193-3.193C17.618 1.95 14.931 0 12.24 0c-6.617 0-11.76 5.253-11.76 11.76S5.623 23.52 12.24 23.52c6.31 0 10.66-4.59 10.66-10.366 0-.69-.074-1.32-.186-1.956H12.24z"></path>
+                </svg>
+                Sign in with Google
+            </button>
+            <button id="guest-button" class="button secondary-button mt-4">Continue as Guest</button>
+            <p class="text-sm text-gray-500 mt-4 text-center">Your progress will be saved to this browser, but not synced across devices.</p>
+        </div>
+
+        <!-- Teacher Sign-in/Registration Page -->
+        <div id="teacher-sign-in-page" class="page">
+            <button id="back-to-auth-teacher-button" class="back-button">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M15.41 7.41L14 6L8 12L14 18L15.41 16.59L10.83 12L15.41 7.41Z" />
+                </svg>
+                Back
+            </button>
+            <h2 class="text-2xl font-bold mb-4 text-center">Teacher Sign In</h2>
+            <p class="text-lg text-gray-700 mb-6 text-center">Teachers must sign in with a Google account to manage students.</p>
+            <button id="google-signin-teacher-button" class="google-signin-button mt-4">
+                <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12.24 10.285V14.4h6.866c-.282 1.9-1.928 4.67-6.866 4.67-4.113 0-7.46-3.35-7.46-7.46s3.347-7.46 7.46-7.46c2.42 0 4.026.96 4.945 1.848l3.193-3.193C17.618 1.95 14.931 0 12.24 0c-6.617 0-11.76 5.253-11.76 11.76S5.623 23.52 12.24 23.52c6.31 0 10.66-4.59 10.66-10.366 0-.69-.074-1.32-.186-1.956H12.24z"></path>
+                </svg>
+                Sign in with Google
+            </button>
+        </div>
+
+        <!-- Student Dashboard Page -->
+        <div id="student-page" class="page">
+            <h2 class="text-2xl font-bold mb-4 text-center">Student Dashboard</h2>
+            <div id="auth-status-message" class="mb-4 p-4 rounded-lg text-center"></div>
+
+            <!-- Assignments Section -->
+            <div id="assignments-section" class="p-6 bg-white rounded-2xl shadow-lg w-full max-w-lg mb-8">
+                <h3 class="text-xl font-bold mb-4 text-center">My Assignments</h3>
+                <div id="assignments-list" class="flex flex-col gap-2">
+                    <p class="text-gray-500 text-center">No assignments yet. Enroll in a class or check back later!</p>
+                </div>
+            </div>
+
+            <!-- Practice Decks Section -->
+            <div id="practice-decks-section" class="p-6 bg-white rounded-2xl shadow-lg w-full max-w-lg mb-8">
+                <h3 class="text-xl font-bold mb-4 text-center">Practice Decks</h3>
+                <div class="flex flex-col gap-4">
+                    <button id="practice-vocabulary-button" class="button primary-button">Practice Vocabulary</button>
+                    <button id="practice-verbs-button" class="button primary-button">Practice Verbs</button>
+                </div>
+            </div>
+
+            <!-- Enrollment Section -->
+            <div class="p-6 bg-white rounded-2xl shadow-lg w-full max-w-lg">
+                <h3 class="text-xl font-bold mb-4 text-center">Enroll in a Class</h3>
+                <div class="input-group">
+                    <label for="access-code-input">Access Code</label>
+                    <input type="text" id="access-code-input" placeholder="Enter teacher's access code">
+                </div>
+                <button id="enroll-button" class="button primary-button w-full">Enroll</button>
+            </div>
+        </div>
+
+        <!-- Teacher Portal Page -->
+        <div id="teacher-portal-page" class="page">
+            <h2 class="text-2xl font-bold mb-4 text-center">Teacher Portal</h2>
+            <div class="flex flex-col md:flex-row gap-8 w-full">
+                <!-- Left Column: Creation Tools -->
+                <div class="flex-1 flex flex-col gap-8">
+                    <div class="p-6 bg-white rounded-2xl shadow-lg">
+                        <h3 class="text-xl font-bold mb-4 text-center">Generate Random Access Code</h3>
+                        <p class="text-sm text-gray-500 mb-4 text-center">Share this one-time code with a student to link their progress to your account.</p>
+                        <div id="code-display" class="code-container hidden"></div>
+                        <button id="generate-random-code-button" class="button primary-button w-full mt-4">Generate New Code</button>
+                    </div>
+
+                    <div class="p-6 bg-white rounded-2xl shadow-lg">
+                        <h3 class="text-xl font-bold mb-4 text-center">Set a Custom Access Code</h3>
+                        <p class="text-sm text-gray-500 mb-4 text-center">Create a memorable code for your students to use.</p>
+                        <div class="input-group">
+                            <label for="custom-code-input">Custom Code</label>
+                            <input type="text" id="custom-code-input" placeholder="e.g., myclass2025">
+                        </div>
+                        <button id="set-custom-code-button" class="button primary-button w-full">Set Code</button>
+                    </div>
+
+                    <div class="p-6 bg-white rounded-2xl shadow-lg">
+                        <h3 class="text-xl font-bold mb-4 text-center">Create a Card Manually</h3>
+                        <div class="input-group">
+                            <label for="english-input">English Word/Phrase</label>
+                            <input type="text" id="english-input" placeholder="e.g., I am happy">
+                        </div>
+                        <div class="input-group">
+                            <label for="romanized-input">Romanized Telugu</label>
+                            <input type="text" id="romanized-input" placeholder="e.g., Nenu santhoshamga unnanu">
+                        </div>
+                        <div class="input-group">
+                            <label for="telugu-input">Telugu Script</label>
+                            <input type="text" id="telugu-input" placeholder="e.g., నేను సంతోషంగా ఉన్నాను">
+                        </div>
+                        <div class="flex items-center gap-2 mb-4">
+                            <input type="checkbox" id="is-assignment-checkbox" class="rounded">
+                            <label for="is-assignment-checkbox" class="font-medium">Make this an assignment</label>
+                        </div>
+                        <button id="add-card-button" class="button primary-button w-full mt-4">Add Card</button>
+                    </div>
+
+                    <div class="p-6 bg-white rounded-2xl shadow-lg">
+                        <h3 class="text-xl font-bold mb-4 text-center">Generate Cards with AI</h3>
+                        <p class="text-sm text-gray-500 mb-4 text-center">Use the power of AI to generate a full flashcard deck.</p>
+                        <div class="input-group">
+                            <label for="llm-prompt-input">LLM Prompt</label>
+                            <textarea id="llm-prompt-input" rows="3" placeholder="e.g., Generate 10 flashcards for common animals in Telugu."></textarea>
+                        </div>
+                        <div class="flex items-center gap-2 mb-4">
+                            <input type="checkbox" id="is-assignment-llm-checkbox" class="rounded">
+                            <label for="is-assignment-llm-checkbox" class="font-medium">Make this an assignment</label>
+                        </div>
+                        <button id="generate-llm-button" class="button primary-button w-full mt-4">Generate Deck</button>
+                    </div>
+                </div>
+
+                <!-- Right Column: Student Progress -->
+                <div class="flex-1 p-6 bg-white rounded-2xl shadow-lg">
+                    <h3 class="text-xl font-bold mb-4 text-center">Student Progress Overview</h3>
+                    <div id="student-list" class="w-full">
+                        <p class="text-gray-500 text-center">No students have enrolled yet.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Flashcard Page -->
+        <div id="flashcard-page" class="page">
+            <p id="deck-mode-text" class="text-lg font-medium text-gray-600 mb-2 text-center">Deck: Vocabulary</p>
+            <p id="skill-mode-text" class="text-lg font-medium text-gray-600 mb-8 text-center">Mode: Beginner</p>
+
+            <!-- Flashcard Container -->
+            <div class="flashcard-container" id="flashcard-container">
+                <div id="flashcard" class="flashcard">
+                    <!-- Front of the card -->
+                    <div class="flashcard-front">
+                        <span id="english-word" class="text-2xl font-bold mb-4"></span>
+                    </div>
+                    <!-- Back of the card -->
+                    <div class="flashcard-back">
+                        <span id="telugu-display" class="telugu-script font-bold mb-2"></span>
+                        <span id="romanized-display" class="romanized-text"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="flex justify-center flex-wrap gap-4 mb-4">
+                <button id="got-it-button" class="button primary-button">Got It!</button>
+                <button id="need-practice-button" class="button secondary-button">Need more practice</button>
+                <button id="flip-button" class="button primary-button">Flip Card</button>
+                <button id="next-card-button" class="button primary-button">Next Card</button>
+            </div>
+            <div class="flex justify-center flex-wrap gap-4">
+                <button id="toggle-deck-button" class="button primary-button">Toggle Deck</button>
+                <button id="toggle-skill-button" class="button secondary-button">Toggle Mode</button>
+            </div>
+            <p id="progress-text" class="text-md font-medium text-gray-500 mt-4">Cards mastered: <span id="mastered-count-display">0</span></p>
+        </div>
+
+        <!-- Progress Page -->
+        <div id="progress-page" class="page">
+            <h2 class="text-2xl font-bold mb-4 text-center">My Progress</h2>
+            <div class="w-full max-w-lg">
+                <p class="text-lg font-medium text-gray-700">Total Cards Mastered: <span id="mastered-count-display-progress">0</span></p>
+                <div id="card-progress-list" class="mt-4 p-4 bg-white rounded-xl shadow-md">
+                    <p class="text-gray-500">Practice more to see your progress here!</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, addDoc, setDoc, onSnapshot, collection, query, where, getDocs, getDoc, setLogLevel, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables from the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        const LOCAL_STORAGE_KEY = `${appId}-guest-progress`;
+
+        let db, auth;
+        let userId = null;
+        let userEmail = null;
+        let isTeacher = false;
+        let isAuthReady = false; // Flag to indicate if auth state is determined
+        let decks = {};
+        let teacherId = null;
+        let localProgress = {};
+        const builtInDecks = {
+            'vocabulary': [
+                { english: 'Hello', romanized: 'Namaskaram', telugu: 'నమస్కారం' },
+                { english: 'Thank you', romanized: 'Dhanyavadalu', telugu: 'ధన్యవాదాలు' },
+                { english: 'Please', romanized: 'Dayachesi', telugu: 'దయచేసి' },
+                { english: 'Yes', romanized: 'Avunu', telugu: 'అవును' },
+                { english: 'No', romanized: 'Ledu', telugu: 'లేదు' },
+            ],
+            'verbs': [
+                { english: 'I eat', romanized: 'Nenu tinanu', telugu: 'నేను తిన్నాను' },
+                { english: 'You walk', romanized: 'Nuvvu nadustavu', telugu: 'నువ్వు నడుస్తావు' },
+                { english: 'He comes', romanized: 'Atanu vastadu', telugu: 'అతను వస్తాడు' },
+                { english: 'She goes', romanized: 'Ame velthundi', telugu: 'ఆమె వెళ్తుంది' },
+                { english: 'They play', romanized: 'Varu adutaru', telugu: 'వారు ఆడుతారు' },
+            ]
+        };
+        let currentDeckName = 'vocabulary';
+        let currentCardIndex = 0;
+        let isFlipped = false;
+        let isBeginnerMode = true;
+        let progressUnsubscribers = [];
+
+        // UI Elements
+        const pages = document.querySelectorAll('.page');
+        const navBar = document.getElementById('nav-bar');
+        const navButtons = document.querySelectorAll('.nav-button');
+        const navTeacherPortal = document.getElementById('nav-teacher-portal');
+        const navStudent = document.getElementById('nav-student');
+        const navFlashcard = document.getElementById('nav-flashcard');
+        const navProgress = document.getElementById('nav-progress');
+        const flashcard = document.getElementById('flashcard');
+        const englishWord = document.getElementById('english-word');
+        const teluguDisplay = document.getElementById('telugu-display');
+        const romanizedDisplay = document.getElementById('romanized-display');
+        const deckModeText = document.getElementById('deck-mode-text');
+        const skillModeText = document.getElementById('skill-mode-text');
+        const gotItButton = document.getElementById('got-it-button');
+        const needPracticeButton = document.getElementById('need-practice-button');
+        const nextCardButton = document.getElementById('next-card-button');
+        const toggleDeckButton = document.getElementById('toggle-deck-button');
+        const toggleSkillButton = document.getElementById('toggle-skill-button');
+        const flipButton = document.getElementById('flip-button');
+        const flashcardContainer = document.getElementById('flashcard-container');
+        const userIdSpan = document.getElementById('user-id');
+        const authStatusMessage = document.getElementById('auth-status-message');
+        const studentButton = document.getElementById('student-button');
+        const teacherButton = document.getElementById('teacher-button');
+        const googleSignInStudentButton = document.getElementById('google-signin-student-button');
+        const googleSignInTeacherButton = document.getElementById('google-signin-teacher-button');
+        const guestButton = document.getElementById('guest-button');
+        const llmPromptInput = document.getElementById('llm-prompt-input');
+        const generateLlmButton = document.getElementById('generate-llm-button');
+        const englishInput = document.getElementById('english-input');
+        const romanizedInput = document.getElementById('romanized-input');
+        const teluguInput = document.getElementById('telugu-input');
+        const addCardButton = document.getElementById('add-card-button');
+        const accessCodeInput = document.getElementById('access-code-input');
+        const enrollButton = document.getElementById('enroll-button');
+        const generateRandomCodeButton = document.getElementById('generate-random-code-button');
+        const customCodeInput = document.getElementById('custom-code-input');
+        const setCustomCodeButton = document.getElementById('set-custom-code-button');
+        const codeDisplay = document.getElementById('code-display');
+        const masteredCountDisplay = document.getElementById('mastered-count-display');
+        const masteredCountDisplayProgress = document.getElementById('mastered-count-display-progress');
+        const cardProgressList = document.getElementById('card-progress-list');
+        const studentList = document.getElementById('student-list');
+        const assignmentsList = document.getElementById('assignments-list');
+        const isAssignmentCheckbox = document.getElementById('is-assignment-checkbox');
+        const isAssignmentLlmCheckbox = document.getElementById('is-assignment-llm-checkbox');
+        const backToAuthStudentButton = document.getElementById('back-to-auth-student-button');
+        const backToAuthTeacherButton = document.getElementById('back-to-auth-teacher-button');
+        const practiceVocabularyButton = document.getElementById('practice-vocabulary-button');
+        const practiceVerbsButton = document.getElementById('practice-verbs-button');
+
+        // Firebase Auth and DB initialization
+        async function initFirebase() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                setLogLevel('Debug');
+
+                onAuthStateChanged(auth, async (user) => {
+                    console.log("onAuthStateChanged triggered. User:", user ? user.uid : 'none');
+                    isAuthReady = true;
+                    if (user) {
+                        userId = user.uid;
+                        userEmail = user.email;
+                        userIdSpan.textContent = userId;
+                        await checkUserRoleAndRedirect();
+                    } else {
+                        userId = null;
+                        userEmail = null;
+                        userIdSpan.textContent = 'Not Signed In';
+                        navBar.classList.add('hidden');
+                        showPage('auth-page');
+                    }
+                });
+                
+                if (initialAuthToken) {
+                    console.log("Signing in with custom token.");
+                    await signInWithCustomToken(auth, initialAuthToken);
+                }
+            } catch (error) {
+                console.error("Firebase initialization error: ", error);
+            }
+        }
+        
+        async function handleStudentSignIn() {
+            console.log("Student sign-in button clicked.");
+             const provider = new GoogleAuthProvider();
+             try {
+                 await signInWithPopup(auth, provider);
+                 // The onAuthStateChanged listener will handle the redirection
+             } catch (error) {
+                 console.error("Google sign-in error: ", error);
+                 showModal("Google Sign-In failed. Please try again.");
+             }
+        }
+
+        async function handleTeacherSignIn() {
+            console.log("Teacher sign-in button clicked.");
+            const provider = new GoogleAuthProvider();
+            try {
+                await signInWithPopup(auth, provider);
+                 // The onAuthStateChanged listener will handle the redirection
+            } catch (error) {
+                console.error("Google sign-in error: ", error);
+                showModal("Google Sign-In failed. Please try again.");
+            }
+        }
+
+        async function checkUserRoleAndRedirect() {
+             if (!userId || !db || !isAuthReady) {
+                 console.log("checkUserRoleAndRedirect called before auth is ready. Skipping.");
+                 return;
+             }
+             
+             console.log("Checking user role for ID:", userId);
+
+             const userDocRef = doc(db, `artifacts/${appId}/users`, userId);
+             const userDocSnap = await getDoc(userDocRef);
+             let userRole = userDocSnap.exists() ? userDocSnap.data().role : null;
+             teacherId = userDocSnap.exists() ? userDocSnap.data().teacherId : null;
+
+             if (!userRole) {
+                 const teachersRef = doc(db, `artifacts/${appId}/teachers`, userId);
+                 const teachersSnap = await getDoc(teachersRef);
+                 isTeacher = teachersSnap.exists();
+                 userRole = isTeacher ? 'teacher' : 'student';
+                 await setDoc(userDocRef, { role: userRole }, { merge: true });
+                 console.log(`User role determined as: ${userRole}`);
+             } else {
+                 isTeacher = userRole === 'teacher';
+                 console.log(`User role fetched as: ${userRole}`);
+             }
+
+             navBar.classList.remove('hidden');
+             if (isTeacher) {
+                 navTeacherPortal.classList.remove('hidden');
+                 navStudent.classList.add('hidden');
+                 navFlashcard.classList.add('hidden');
+                 navProgress.classList.add('hidden');
+                 await loadAllStudentProgress();
+                 showPage('teacher-portal-page');
+             } else {
+                 navTeacherPortal.classList.add('hidden');
+                 navStudent.classList.remove('hidden');
+                 navFlashcard.classList.remove('hidden');
+                 navProgress.classList.remove('hidden');
+                 await loadAssignments();
+                 await loadStudentProgress();
+                 showPage('student-page');
+             }
+        }
+
+        function showPage(pageId) {
+            console.log("Showing page:", pageId);
+            // Clean up old listeners
+            progressUnsubscribers.forEach(unsub => unsub());
+            progressUnsubscribers = [];
+            
+            pages.forEach(page => page.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            navButtons.forEach(btn => btn.classList.remove('active'));
+            const navBtn = document.getElementById(`nav-${pageId.replace('-page', '')}`);
+            if (navBtn) navBtn.classList.add('active');
+        }
+
+        async function loadAssignments() {
+            if (!teacherId || !db) return;
+            console.log("Loading assignments for teacher ID:", teacherId);
+            try {
+                const q = query(collection(db, `artifacts/${appId}/public/teacher_assignments`), where("teacherId", "==", teacherId));
+                const unsub = onSnapshot(q, (querySnapshot) => {
+                     assignmentsList.innerHTML = '';
+                     if (querySnapshot.empty) {
+                        assignmentsList.innerHTML = `<p class="text-gray-500 text-center">No assignments yet.</p>`;
+                        return;
+                     }
+                     querySnapshot.forEach((doc) => {
+                         const assignment = doc.data();
+                         const li = document.createElement('div');
+                         li.className = 'p-4 bg-white rounded-lg shadow-md hover:bg-gray-50 transition-colors cursor-pointer';
+                         li.textContent = `Assignment: ${assignment.deckName}`;
+                         li.addEventListener('click', () => {
+                             decks['assignment'] = assignment.cards;
+                             currentDeckName = 'assignment';
+                             currentCardIndex = 0;
+                             isFlipped = false;
+                             showPage('flashcard-page');
+                             updateCardContent();
+                         });
+                         assignmentsList.appendChild(li);
+                     });
+                 }, (error) => {
+                     console.error("Error listening to assignments: ", error);
+                 });
+                 progressUnsubscribers.push(unsub);
+            } catch(e) {
+                console.error("Error fetching assignments: ", e);
+            }
+        }
+        
+        async function loadStudentProgress() {
+            if (!isAuthReady) return;
+            cardProgressList.innerHTML = '';
+            let masteredCount = 0;
+
+            if (auth.currentUser && !auth.currentUser.isAnonymous) {
+                // Firestore logic for signed-in users
+                if (!db) return;
+                try {
+                    const q = collection(db, `artifacts/${appId}/users/${userId}/progress`);
+                    const unsub = onSnapshot(q, (querySnapshot) => {
+                        cardProgressList.innerHTML = '';
+                        masteredCount = 0;
+                        querySnapshot.forEach((doc) => {
+                            const data = doc.data();
+                            const cardText = data.english || "Unknown Card";
+                            const isMastered = data.mastered;
+                            if (isMastered) {
+                                masteredCount++;
+                            }
+                            const p = document.createElement('p');
+                            p.textContent = `${cardText}: ${isMastered ? 'Mastered' : 'Needs Practice'}`;
+                            p.className = isMastered ? 'text-green-600' : 'text-red-600';
+                            cardProgressList.appendChild(p);
+                        });
+                        if (querySnapshot.empty) {
+                             cardProgressList.innerHTML = `<p class="text-gray-500">Practice more to see your progress here!</p>`;
+                        }
+                        masteredCountDisplay.textContent = masteredCount;
+                        masteredCountDisplayProgress.textContent = masteredCount;
+                    }, (error) => {
+                        console.error("Error listening to progress: ", error);
+                    });
+                    progressUnsubscribers.push(unsub);
+                } catch (e) {
+                    console.error("Error loading progress from Firestore: ", e);
+                }
+            } else {
+                // Local storage logic for guests
+                try {
+                    const progressData = localStorage.getItem(LOCAL_STORAGE_KEY);
+                    localProgress = progressData ? JSON.parse(progressData) : {};
+                    for (const key in localProgress) {
+                        const data = localProgress[key];
+                        const p = document.createElement('p');
+                        p.textContent = `${data.english}: ${data.mastered ? 'Mastered' : 'Needs Practice'}`;
+                        p.className = data.mastered ? 'text-green-600' : 'text-red-600';
+                        cardProgressList.appendChild(p);
+                        if (data.mastered) {
+                            masteredCount++;
+                        }
+                    }
+                    if (Object.keys(localProgress).length === 0) {
+                        cardProgressList.innerHTML = `<p class="text-gray-500">Practice more to see your progress here!</p>`;
+                    }
+                    masteredCountDisplay.textContent = masteredCount;
+                    masteredCountDisplayProgress.textContent = masteredCount;
+                } catch (e) {
+                    console.error("Error loading progress from localStorage: ", e);
+                }
+            }
+        }
+
+        async function loadAllStudentProgress() {
+            if (!isTeacher || !db) return;
+            console.log("Loading all student progress for teacher ID:", userId);
+            try {
+                const q = query(collection(db, `artifacts/${appId}/users`), where("teacherId", "==", userId));
+                const unsubStudents = onSnapshot(q, (querySnapshot) => {
+                    studentList.innerHTML = '';
+                    if (querySnapshot.empty) {
+                        studentList.innerHTML = `<p class="text-gray-500 text-center">No students have enrolled yet.</p>`;
+                        return;
+                    }
+                    
+                    querySnapshot.forEach((doc) => {
+                        const studentData = doc.data();
+                        const studentId = doc.id;
+                        const progressQ = collection(db, `artifacts/${appId}/users/${studentId}/progress`);
+                        
+                        const unsubProgress = onSnapshot(progressQ, (progressSnapshot) => {
+                            let masteredCount = 0;
+                            progressSnapshot.forEach(progressDoc => {
+                                if (progressDoc.data().mastered) {
+                                    masteredCount++;
+                                }
+                            });
+                            
+                            const div = document.createElement('div');
+                            div.className = 'p-4 bg-gray-100 rounded-lg shadow-sm mb-2';
+                            div.innerHTML = `<p class="font-bold">Student: ${studentData.email || studentId}</p><p>Mastered Cards: ${masteredCount}</p>`;
+                            studentList.appendChild(div);
+                        }, (error) => {
+                             console.error("Error listening to student's progress: ", error);
+                        });
+                        progressUnsubscribers.push(unsubProgress);
+                    });
+                }, (error) => {
+                    console.error("Error listening to enrolled students: ", error);
+                });
+                progressUnsubscribers.push(unsubStudents);
+            } catch (e) {
+                console.error("Error loading all student progress: ", e);
+            }
+        }
+
+        // Flashcard Logic
+        function updateCardContent() {
+            const currentDeck = decks[currentDeckName];
+            if (!currentDeck || currentDeck.length === 0) {
+                englishWord.textContent = 'No cards in this deck.';
+                teluguDisplay.textContent = '';
+                romanizedDisplay.textContent = '';
+                return;
+            }
+            const cardData = currentDeck[currentCardIndex];
+            englishWord.textContent = cardData.english;
+            if (isBeginnerMode) {
+                teluguDisplay.textContent = cardData.romanized;
+                romanizedDisplay.textContent = '';
+            } else {
+                teluguDisplay.textContent = cardData.telugu;
+                romanizedDisplay.textContent = cardData.romanized;
+            }
+            deckModeText.textContent = `Deck: ${currentDeckName.charAt(0).toUpperCase() + currentDeckName.slice(1)}`;
+            flipButton.disabled = false;
+        }
+
+        function flipCard() {
+            console.log("Flip card button clicked.");
+            isFlipped = !isFlipped;
+            if (isFlipped) {
+                flashcard.classList.add('flipped');
+            } else {
+                flashcard.classList.remove('flipped');
+            }
+        }
+
+        function nextCard() {
+            console.log("Next card button clicked.");
+            isFlipped = false;
+            flashcard.classList.remove('flipped');
+            const currentDeck = decks[currentDeckName];
+            if (!currentDeck || currentDeck.length === 0) {
+                currentCardIndex = 0;
+                updateCardContent();
+                return;
+            }
+            currentCardIndex = (currentCardIndex + 1) % currentDeck.length;
+            setTimeout(updateCardContent, 600);
+        }
+
+        async function gotIt() {
+            console.log("Got It! button clicked.");
+            if (!isAuthReady) {
+                 showModal("Please wait for the app to initialize.");
+                 return;
+            }
+            const currentCard = decks[currentDeckName][currentCardIndex];
+            if (auth.currentUser.isAnonymous) {
+                localProgress[btoa(currentCard.english)] = { mastered: true, english: currentCard.english };
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(localProgress));
+                loadStudentProgress(); // Update UI
+            } else {
+                 if (!db) return;
+                const progressRef = doc(db, `artifacts/${appId}/users/${userId}/progress`, btoa(currentCard.english));
+                try {
+                    await setDoc(progressRef, { mastered: true, english: currentCard.english, lastPracticed: new Date() }, { merge: true });
+                } catch (e) {
+                    console.error("Error updating progress: ", e);
+                }
+            }
+            nextCard();
+        }
+
+        async function needMorePractice() {
+            console.log("Need more practice button clicked.");
+            if (!isAuthReady) {
+                 showModal("Please wait for the app to initialize.");
+                 return;
+            }
+            const currentCard = decks[currentDeckName][currentCardIndex];
+            if (auth.currentUser.isAnonymous) {
+                localProgress[btoa(currentCard.english)] = { mastered: false, english: currentCard.english };
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(localProgress));
+                loadStudentProgress(); // Update UI
+            } else {
+                if (!db) return;
+                const progressRef = doc(db, `artifacts/${appId}/users/${userId}/progress`, btoa(currentCard.english));
+                try {
+                    await setDoc(progressRef, { mastered: false, english: currentCard.english, lastPracticed: new Date() }, { merge: true });
+                } catch (e) {
+                    console.error("Error updating progress: ", e);
+                }
+            }
+            nextCard();
+        }
+
+        function toggleDeck() {
+            console.log("Toggle deck button clicked.");
+            const deckNames = Object.keys(decks);
+            const currentIndex = deckNames.indexOf(currentDeckName);
+            const nextIndex = (currentIndex + 1) % deckNames.length;
+            currentDeckName = deckNames[nextIndex];
+            currentCardIndex = 0;
+            isFlipped = false;
+            flashcard.classList.remove('flipped');
+            deckModeText.textContent = `Deck: ${currentDeckName.charAt(0).toUpperCase() + currentDeckName.slice(1)}`;
+            setTimeout(updateCardContent, 600);
+        }
+
+        function toggleSkillMode() {
+            console.log("Toggle skill mode button clicked.");
+            isBeginnerMode = !isBeginnerMode;
+            skillModeText.textContent = isBeginnerMode ? 'Mode: Beginner' : 'Mode: Intermediate';
+            isFlipped = false;
+            flashcard.classList.remove('flipped');
+            setTimeout(updateCardContent, 600);
+        }
+        
+        // Teacher Portal Logic
+        async function generateRandomCode() {
+            console.log("Generate random code button clicked.");
+            if (!isTeacher || !db) {
+                showModal("You must be a signed-in teacher to perform this action.");
+                return;
+            }
+            const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            try {
+                await setDoc(doc(db, `artifacts/${appId}/public/access_codes`, newCode), {
+                    teacherId: userId,
+                    createdAt: new Date(),
+                    used: false
+                });
+                codeDisplay.textContent = newCode;
+                codeDisplay.classList.remove('hidden');
+                showModal(`New access code generated! Share this one-time code with your students: ${newCode}`);
+            } catch (e) {
+                console.error("Error generating access code: ", e);
+                showModal("Failed to generate code. Please ensure you are signed in.");
+            }
+        }
+
+        async function setCustomCode() {
+            console.log("Set custom code button clicked.");
+            if (!isTeacher || !db) {
+                showModal("You must be a signed-in teacher to perform this action.");
+                return;
+            }
+            const customCode = customCodeInput.value.trim();
+            if (!customCode) {
+                showModal("Please enter a custom access code.");
+                return;
+            }
+            try {
+                await setDoc(doc(db, `artifacts/${appId}/public/access_codes`, customCode), {
+                    teacherId: userId,
+                    createdAt: new Date(),
+                    used: false
+                });
+                showModal(`Custom code '${customCode}' has been set!`);
+                customCodeInput.value = '';
+            } catch (e) {
+                console.error("Error setting custom code: ", e);
+                showModal("Failed to set custom code. Please ensure you are signed in.");
+            }
+        }
+
+
+        async function enrollInClass() {
+             console.log("Enroll button clicked.");
+             if (!userId || auth.currentUser.isAnonymous || !db) {
+                 showModal("You must be signed in to enroll in a class. Please sign in with Google.");
+                 return;
+             }
+             const accessCode = accessCodeInput.value.trim();
+             if (!accessCode) {
+                 showModal("Please enter an access code.");
+                 return;
+             }
+             try {
+                 const codeDocRef = doc(db, `artifacts/${appId}/public/access_codes`, accessCode);
+                 const codeDocSnap = await getDoc(codeDocRef);
+                 if (!codeDocSnap.exists() || codeDocSnap.data().used) {
+                     showModal("Invalid or used access code.");
+                     return;
+                 }
+                 const foundTeacherId = codeDocSnap.data().teacherId;
+                 const userDocRef = doc(db, `artifacts/${appId}/users`, userId);
+                 await setDoc(userDocRef, { teacherId: foundTeacherId }, { merge: true });
+                 await setDoc(codeDocRef, { used: true }, { merge: true });
+                 teacherId = foundTeacherId; 
+                 showModal("Successfully enrolled in the class!");
+                 accessCodeInput.value = '';
+                 await loadAssignments();
+                 showPage('student-page');
+             } catch (e) {
+                 console.error("Enrollment error: ", e);
+                 showModal("Failed to enroll in class.");
+             }
+         }
+        
+        async function addCardToCustomDeck() {
+            console.log("Add card button clicked.");
+            if (!isTeacher || !db) return;
+            const english = englishInput.value.trim();
+            const romanized = romanizedInput.value.trim();
+            const telugu = teluguInput.value.trim();
+            if (!english || !romanized || !telugu) {
+                showModal("Please fill all fields.");
+                return;
+            }
+            try {
+                 const newCard = { english, romanized, telugu };
+                 if (isAssignmentCheckbox.checked) {
+                     const assignmentRef = collection(db, `artifacts/${appId}/public/teacher_assignments`);
+                     await addDoc(assignmentRef, {
+                         teacherId: userId,
+                         deckName: english,
+                         cards: [newCard]
+                     });
+                     showModal("Assignment created successfully!");
+                 } else {
+                     const customDeckRef = collection(db, `artifacts/${appId}/public/decks/${userId}`);
+                     await addDoc(customDeckRef, newCard);
+                     showModal("Card added successfully!");
+                 }
+                englishInput.value = '';
+                romanizedInput.value = '';
+                teluguInput.value = '';
+            } catch (e) {
+                console.error("Error adding document: ", e);
+                showModal("Failed to add card.");
+            }
+        }
+        
+        async function generateCardsFromLLM() {
+             console.log("Generate LLM button clicked.");
+             if (!isTeacher || !db) return;
+             const prompt = llmPromptInput.value.trim();
+             if (!prompt) {
+                 showModal("Please enter a prompt for the AI.");
+                 return;
+             }
+             generateLlmButton.disabled = true;
+             generateLlmButton.textContent = 'Generating...';
+
+             try {
+                 const systemPrompt = "You are a language tutor. Your task is to generate flashcard data for learning Telugu. Respond only with a JSON array of objects. Each object must have three properties: 'english' (string), 'romanized' (string for romanized Telugu), and 'telugu' (string for Telugu script). The response should contain at least 5 flashcards.";
+                 const apiKey = "";
+                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                 const payload = {
+                     contents: [{ parts: [{ text: prompt }] }],
+                     tools: [{ "google_search": {} }],
+                     systemInstruction: {
+                         parts: [{ text: systemPrompt }]
+                     },
+                     generationConfig: {
+                         responseMimeType: "application/json",
+                         responseSchema: {
+                             type: "ARRAY",
+                             items: {
+                                 type: "OBJECT",
+                                 properties: {
+                                     "english": { "type": "STRING" },
+                                     "romanized": { "type": "STRING" },
+                                     "telugu": { "type": "STRING" }
+                                 },
+                                 "propertyOrdering": ["english", "romanized", "telugu"]
+                             }
+                         }
+                     }
+                 };
+
+                 const response = await fetch(apiUrl, {
+                     method: 'POST',
+                     headers: { 'Content-Type': 'application/json' },
+                     body: JSON.stringify(payload)
+                 });
+
+                 const result = await response.json();
+                 const jsonString = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                 const newCards = JSON.parse(jsonString);
+
+                 if (isAssignmentLlmCheckbox.checked) {
+                      const assignmentRef = collection(db, `artifacts/${appId}/public/teacher_assignments`);
+                      await addDoc(assignmentRef, {
+                          teacherId: userId,
+                          deckName: prompt,
+                          cards: newCards
+                      });
+                      showModal("Successfully generated and saved new assignment!");
+                 } else {
+                     const customDeckRef = collection(db, `artifacts/${appId}/public/decks/${userId}`);
+                     for (const card of newCards) {
+                         await addDoc(customDeckRef, card);
+                     }
+                     showModal("Successfully generated and saved new cards!");
+                 }
+                 
+             } catch (e) {
+                 console.error("LLM Generation Error: ", e);
+                 showModal("Failed to generate cards. Please try again.");
+             } finally {
+                 generateLlmButton.disabled = false;
+                 generateLlmButton.textContent = 'Generate Deck';
+             }
+         }
+
+        // Custom Modal for Messages
+        function showModal(message) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center';
+            modal.innerHTML = `
+                <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4">
+                    <p class="text-center font-bold text-lg mb-4">${message}</p>
+                    <button class="button primary-button w-full" id="modal-close">OK</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            document.getElementById('modal-close').addEventListener('click', () => {
+                document.body.removeChild(modal);
+            });
+        }
+
+        // Event Listeners
+        navButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const pageId = btn.id.replace('nav-', '') + '-page';
+                if (pageId === 'flashcard-page') {
+                    decks = { ...builtInDecks, custom: [] };
+                    currentDeckName = 'vocabulary';
+                    updateCardContent();
+                }
+                showPage(pageId);
+            });
+        });
+
+        studentButton.addEventListener('click', () => {
+            console.log("Student button clicked.");
+            showPage('student-sign-in-page');
+        });
+        teacherButton.addEventListener('click', () => {
+            console.log("Teacher button clicked.");
+            showPage('teacher-sign-in-page');
+        });
+        googleSignInStudentButton.addEventListener('click', handleStudentSignIn);
+        googleSignInTeacherButton.addEventListener('click', handleTeacherSignIn);
+        guestButton.addEventListener('click', async () => {
+             console.log("Guest button clicked.");
+             await signInAnonymously(auth);
+        });
+        backToAuthStudentButton.addEventListener('click', () => {
+            console.log("Back to auth button clicked (student).");
+            showPage('auth-page');
+        });
+        backToAuthTeacherButton.addEventListener('click', () => {
+            console.log("Back to auth button clicked (teacher).");
+            showPage('auth-page');
+        });
+
+        practiceVocabularyButton.addEventListener('click', () => {
+             console.log("Practice vocabulary button clicked.");
+             currentDeckName = 'vocabulary';
+             currentCardIndex = 0;
+             decks = { ...builtInDecks, custom: [] };
+             isFlipped = false;
+             updateCardContent();
+             showPage('flashcard-page');
+        });
+
+        practiceVerbsButton.addEventListener('click', () => {
+             console.log("Practice verbs button clicked.");
+             currentDeckName = 'verbs';
+             currentCardIndex = 0;
+             decks = { ...builtInDecks, custom: [] };
+             isFlipped = false;
+             updateCardContent();
+             showPage('flashcard-page');
+        });
+
+        flashcardContainer.addEventListener('click', flipCard);
+        flipButton.addEventListener('click', flipCard);
+        gotItButton.addEventListener('click', gotIt);
+        needPracticeButton.addEventListener('click', needMorePractice);
+        nextCardButton.addEventListener('click', nextCard);
+        toggleDeckButton.addEventListener('click', toggleDeck);
+        toggleSkillButton.addEventListener('click', toggleSkillMode);
+        addCardButton.addEventListener('click', addCardToCustomDeck);
+        generateRandomCodeButton.addEventListener('click', generateRandomCode);
+        setCustomCodeButton.addEventListener('click', setCustomCode);
+        enrollButton.addEventListener('click', enrollInClass);
+        generateLlmButton.addEventListener('click', generateCardsFromLLM);
+
+        // Initial app setup
+        document.addEventListener('DOMContentLoaded', () => {
+            initFirebase();
+        });
+    </script>
+</body>
+</html>
