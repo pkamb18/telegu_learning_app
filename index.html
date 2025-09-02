@@ -229,11 +229,31 @@
             letter-spacing: 0.2rem;
             user-select: all;
         }
+
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            font-weight: bold;
+            z-index: 100;
+            transition: opacity 0.5s;
+        }
     </style>
 </head>
 
 <body>
-    <div class="page-container">
+    <div id="loading-overlay">
+        Loading...
+    </div>
+
+    <div class="page-container" id="main-content" style="display: none;">
         <h1 class="text-4xl font-extrabold text-gray-900 mb-6 text-center">Telugu Learning App</h1>
         <p class="text-xs text-gray-400 mb-4">User ID: <span id="user-id"></span></p>
 
@@ -249,8 +269,8 @@
         <div id="auth-page" class="page active">
             <h2 class="text-2xl font-bold mb-4 text-center">Welcome! Are you a...</h2>
             <div class="flex gap-4">
-                <button id="student-button" class="button primary-button w-full">Student</button>
-                <button id="teacher-button" class="button primary-button w-full">Teacher</button>
+                <button id="student-button" class="button primary-button w-full" disabled>Student</button>
+                <button id="teacher-button" class="button primary-button w-full" disabled>Teacher</button>
             </div>
         </div>
 
@@ -270,7 +290,7 @@
                 </svg>
                 Sign in with Google
             </button>
-            <button id="guest-button" class="button secondary-button mt-4">Continue as Guest</button>
+            <button id="guest-button" class="button secondary-button mt-4" disabled>Continue as Guest</button>
             <p class="text-sm text-gray-500 mt-4 text-center">Your progress will be saved to this browser, but not synced across devices.</p>
         </div>
 
@@ -446,11 +466,8 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, addDoc, setDoc, onSnapshot, collection, query, where, getDocs, getDoc, setLogLevel, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-        const LOCAL_STORAGE_KEY = `${appId}-guest-progress`;
-
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const mainContent = document.getElementById('main-content');
         let db, auth;
         let userId = null;
         let userEmail = null;
@@ -480,6 +497,12 @@
         let isFlipped = false;
         let isBeginnerMode = true;
         let progressUnsubscribers = [];
+        const LOCAL_STORAGE_KEY = 'telugu-learning-progress';
+
+        // Global variables for Firebase configuration
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+
 
         // UI Elements
         const pages = document.querySelectorAll('.page');
@@ -536,6 +559,12 @@
         // Firebase Auth and DB initialization
         async function initFirebase() {
             try {
+                if (Object.keys(firebaseConfig).length === 0 || !firebaseConfig.projectId) {
+                    console.error("Firebase config is empty or invalid. Cannot initialize.");
+                    showModal("Error: Firebase configuration not found. Please ensure the app is deployed correctly.");
+                    return;
+                }
+
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
@@ -544,11 +573,29 @@
                 onAuthStateChanged(auth, async (user) => {
                     console.log("onAuthStateChanged triggered. User:", user ? user.uid : 'none');
                     isAuthReady = true;
+
+                    // Enable buttons once auth state is determined
+                    studentButton.disabled = false;
+                    teacherButton.disabled = false;
+                    guestButton.disabled = false;
+
                     if (user) {
                         userId = user.uid;
                         userEmail = user.email;
                         userIdSpan.textContent = userId;
-                        await checkUserRoleAndRedirect();
+
+                        if (user.isAnonymous) {
+                            console.log("User is anonymous. Bypassing Firestore role check.");
+                            isTeacher = false;
+                            navTeacherPortal.classList.add('hidden');
+                            navStudent.classList.remove('hidden');
+                            navFlashcard.classList.remove('hidden');
+                            navProgress.classList.remove('hidden');
+                            await loadStudentProgress();
+                            showPage('student-page');
+                        } else {
+                            await checkUserRoleAndRedirect();
+                        }
                     } else {
                         userId = null;
                         userEmail = null;
@@ -556,9 +603,15 @@
                         navBar.classList.add('hidden');
                         showPage('auth-page');
                     }
+                    
+                    // Hide loading overlay and show content once initialized
+                    loadingOverlay.style.opacity = '0';
+                    setTimeout(() => {
+                        loadingOverlay.style.display = 'none';
+                        mainContent.style.display = 'flex';
+                    }, 500);
                 });
                 
-                // Sign in with the custom token if provided, otherwise anonymously
                 const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
                 if (initialAuthToken) {
                     try {
@@ -575,11 +628,13 @@
 
             } catch (error) {
                 console.error("Firebase initialization error: ", error);
+                showModal("Error during app startup. Please refresh the page.");
             }
         }
         
         async function handleStudentSignIn() {
-            console.log("Student sign-in button clicked.");
+             if (!auth || !isAuthReady) return;
+             console.log("Student sign-in button clicked.");
              const provider = new GoogleAuthProvider();
              try {
                  await signInWithPopup(auth, provider);
@@ -591,6 +646,7 @@
         }
 
         async function handleTeacherSignIn() {
+            if (!auth || !isAuthReady) return;
             console.log("Teacher sign-in button clicked.");
             const provider = new GoogleAuthProvider();
             try {
@@ -602,9 +658,20 @@
             }
         }
 
+        async function handleGuestSignIn() {
+            if (!auth || !isAuthReady) return;
+            console.log("Guest button clicked.");
+            try {
+                await signInAnonymously(auth);
+            } catch (error) {
+                console.error("Anonymous sign-in error: ", error);
+                showModal("Failed to sign in as guest.");
+            }
+        }
+
         async function checkUserRoleAndRedirect() {
-             if (!userId || !db || !isAuthReady) {
-                 console.log("checkUserRoleAndRedirect called before auth is ready. Skipping.");
+             if (!userId || !db || !isAuthReady || auth.currentUser.isAnonymous) {
+                 console.log("checkUserRoleAndRedirect called before auth is ready or for an anonymous user. Skipping.");
                  return;
              }
              
@@ -920,11 +987,8 @@
         
         // Teacher Portal Logic
         async function generateRandomCode() {
+            if (!isTeacher || !db) return;
             console.log("Generate random code button clicked.");
-            if (!isTeacher || !db) {
-                showModal("You must be a signed-in teacher to perform this action.");
-                return;
-            }
             const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
             try {
                 await setDoc(doc(db, `artifacts/${appId}/public/access_codes`, newCode), {
@@ -942,11 +1006,8 @@
         }
 
         async function setCustomCode() {
+            if (!isTeacher || !db) return;
             console.log("Set custom code button clicked.");
-            if (!isTeacher || !db) {
-                showModal("You must be a signed-in teacher to perform this action.");
-                return;
-            }
             const customCode = customCodeInput.value.trim();
             if (!customCode) {
                 showModal("Please enter a custom access code.");
@@ -968,11 +1029,11 @@
 
 
         async function enrollInClass() {
-             console.log("Enroll button clicked.");
              if (!userId || auth.currentUser.isAnonymous || !db) {
                  showModal("You must be signed in to enroll in a class. Please sign in with Google.");
                  return;
              }
+             console.log("Enroll button clicked.");
              const accessCode = accessCodeInput.value.trim();
              if (!accessCode) {
                  showModal("Please enter an access code.");
@@ -1001,8 +1062,8 @@
          }
         
         async function addCardToCustomDeck() {
-            console.log("Add card button clicked.");
             if (!isTeacher || !db) return;
+            console.log("Add card button clicked.");
             const english = englishInput.value.trim();
             const romanized = romanizedInput.value.trim();
             const telugu = teluguInput.value.trim();
@@ -1035,8 +1096,8 @@
         }
         
         async function generateCardsFromLLM() {
-             console.log("Generate LLM button clicked.");
              if (!isTeacher || !db) return;
+             console.log("Generate LLM button clicked.");
              const prompt = llmPromptInput.value.trim();
              if (!prompt) {
                  showModal("Please enter a prompt for the AI.");
@@ -1125,77 +1186,77 @@
         }
 
         // Event Listeners
-        navButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const pageId = btn.id.replace('nav-', '') + '-page';
-                if (pageId === 'flashcard-page') {
-                    decks = { ...builtInDecks, custom: [] };
-                    currentDeckName = 'vocabulary';
-                    updateCardContent();
-                }
-                showPage(pageId);
+        function setupEventListeners() {
+            navButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const pageId = btn.id.replace('nav-', '') + '-page';
+                    if (pageId === 'flashcard-page') {
+                        decks = { ...builtInDecks, custom: [] };
+                        currentDeckName = 'vocabulary';
+                        updateCardContent();
+                    }
+                    showPage(pageId);
+                });
             });
-        });
 
-        studentButton.addEventListener('click', () => {
-            console.log("Student button clicked.");
-            showPage('student-sign-in-page');
-        });
-        teacherButton.addEventListener('click', () => {
-            console.log("Teacher button clicked.");
-            showPage('teacher-sign-in-page');
-        });
-        googleSignInStudentButton.addEventListener('click', handleStudentSignIn);
-        googleSignInTeacherButton.addEventListener('click', handleTeacherSignIn);
-        guestButton.addEventListener('click', async () => {
-             console.log("Guest button clicked.");
-             await signInAnonymously(auth);
-        });
-        backToAuthStudentButton.addEventListener('click', () => {
-            console.log("Back to auth button clicked (student).");
-            showPage('auth-page');
-        });
-        backToAuthTeacherButton.addEventListener('click', () => {
-            console.log("Back to auth button clicked (teacher).");
-            showPage('auth-page');
-        });
+            studentButton.addEventListener('click', () => {
+                console.log("Student button clicked.");
+                showPage('student-sign-in-page');
+            });
+            teacherButton.addEventListener('click', () => {
+                console.log("Teacher button clicked.");
+                showPage('teacher-sign-in-page');
+            });
+            googleSignInStudentButton.addEventListener('click', handleStudentSignIn);
+            googleSignInTeacherButton.addEventListener('click', handleTeacherSignIn);
+            guestButton.addEventListener('click', handleGuestSignIn);
+            backToAuthStudentButton.addEventListener('click', () => {
+                console.log("Back to auth button clicked (student).");
+                showPage('auth-page');
+            });
+            backToAuthTeacherButton.addEventListener('click', () => {
+                console.log("Back to auth button clicked (teacher).");
+                showPage('auth-page');
+            });
 
-        practiceVocabularyButton.addEventListener('click', () => {
-             console.log("Practice vocabulary button clicked.");
-             currentDeckName = 'vocabulary';
-             currentCardIndex = 0;
-             decks = { ...builtInDecks, custom: [] };
-             isFlipped = false;
-             updateCardContent();
-             showPage('flashcard-page');
-        });
+            practiceVocabularyButton.addEventListener('click', () => {
+                 console.log("Practice vocabulary button clicked.");
+                 currentDeckName = 'vocabulary';
+                 currentCardIndex = 0;
+                 decks = { ...builtInDecks, custom: [] };
+                 isFlipped = false;
+                 updateCardContent();
+                 showPage('flashcard-page');
+            });
 
-        practiceVerbsButton.addEventListener('click', () => {
-             console.log("Practice verbs button clicked.");
-             currentDeckName = 'verbs';
-             currentCardIndex = 0;
-             decks = { ...builtInDecks, custom: [] };
-             isFlipped = false;
-             updateCardContent();
-             showPage('flashcard-page');
-        });
+            practiceVerbsButton.addEventListener('click', () => {
+                 console.log("Practice verbs button clicked.");
+                 currentDeckName = 'verbs';
+                 currentCardIndex = 0;
+                 decks = { ...builtInDecks, custom: [] };
+                 isFlipped = false;
+                 updateCardContent();
+                 showPage('flashcard-page');
+            });
 
-        flashcardContainer.addEventListener('click', flipCard);
-        flipButton.addEventListener('click', flipCard);
-        gotItButton.addEventListener('click', gotIt);
-        needPracticeButton.addEventListener('click', needMorePractice);
-        nextCardButton.addEventListener('click', nextCard);
-        toggleDeckButton.addEventListener('click', toggleDeck);
-        toggleSkillButton.addEventListener('click', toggleSkillMode);
-        addCardButton.addEventListener('click', addCardToCustomDeck);
-        generateRandomCodeButton.addEventListener('click', generateRandomCode);
-        setCustomCodeButton.addEventListener('click', setCustomCode);
-        enrollButton.addEventListener('click', enrollInClass);
-        generateLlmButton.addEventListener('click', generateCardsFromLLM);
+            flashcardContainer.addEventListener('click', flipCard);
+            flipButton.addEventListener('click', flipCard);
+            gotItButton.addEventListener('click', gotIt);
+            needPracticeButton.addEventListener('click', needMorePractice);
+            nextCardButton.addEventListener('click', nextCard);
+            toggleDeckButton.addEventListener('click', toggleDeck);
+            toggleSkillButton.addEventListener('click', toggleSkillMode);
+            addCardButton.addEventListener('click', addCardToCustomDeck);
+            generateRandomCodeButton.addEventListener('click', generateRandomCode);
+            setCustomCodeButton.addEventListener('click', setCustomCode);
+            enrollButton.addEventListener('click', enrollInClass);
+            generateLlmButton.addEventListener('click', generateCardsFromLLM);
+        }
 
         // Initial app setup
         document.addEventListener('DOMContentLoaded', () => {
             initFirebase();
+            setupEventListeners();
         });
     </script>
 </body>
