@@ -13,7 +13,7 @@
             font-family: 'Inter', sans-serif;
             background-color: #f3f4f6;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
             min-height: 100vh;
             padding: 1rem;
@@ -37,6 +37,9 @@
             background-color: #fff;
             border-radius: 9999px;
             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            position: sticky;
+            top: 1rem;
+            z-index: 10;
         }
 
         .nav-button {
@@ -238,7 +241,7 @@
         <div id="nav-bar" class="nav-bar hidden">
             <button id="nav-student" class="nav-button">Home</button>
             <button id="nav-flashcard" class="nav-button">Flashcards</button>
-            <button id="nav-teacher-portal" class="nav-button">Teacher Portal</button>
+            <button id="nav-teacher-portal" class="nav-button hidden">Teacher Portal</button>
             <button id="nav-progress" class="nav-button">Progress</button>
         </div>
 
@@ -440,19 +443,19 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, addDoc, setDoc, onSnapshot, collection, query, where, getDocs, getDoc, setLogLevel, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Global variables from the environment
+        const firebaseConfig = JSON.parse(__firebase_config);
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
         const LOCAL_STORAGE_KEY = `${appId}-guest-progress`;
 
         let db, auth;
         let userId = null;
         let userEmail = null;
         let isTeacher = false;
+        let isAuthReady = false; // Flag to indicate if auth state is determined
         let decks = {};
         let teacherId = null;
         let localProgress = {};
@@ -476,11 +479,16 @@
         let currentCardIndex = 0;
         let isFlipped = false;
         let isBeginnerMode = true;
+        let progressUnsubscribers = [];
 
         // UI Elements
         const pages = document.querySelectorAll('.page');
         const navBar = document.getElementById('nav-bar');
         const navButtons = document.querySelectorAll('.nav-button');
+        const navTeacherPortal = document.getElementById('nav-teacher-portal');
+        const navStudent = document.getElementById('nav-student');
+        const navFlashcard = document.getElementById('nav-flashcard');
+        const navProgress = document.getElementById('nav-progress');
         const flashcard = document.getElementById('flashcard');
         const englishWord = document.getElementById('english-word');
         const teluguDisplay = document.getElementById('telugu-display');
@@ -534,84 +542,105 @@
                 setLogLevel('Debug');
 
                 onAuthStateChanged(auth, async (user) => {
+                    console.log("onAuthStateChanged triggered. User:", user ? user.uid : 'none');
+                    isAuthReady = true;
                     if (user) {
                         userId = user.uid;
                         userEmail = user.email;
                         userIdSpan.textContent = userId;
                         await checkUserRoleAndRedirect();
                     } else {
+                        userId = null;
+                        userEmail = null;
                         userIdSpan.textContent = 'Not Signed In';
+                        navBar.classList.add('hidden');
                         showPage('auth-page');
                     }
                 });
                 
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                }
             } catch (error) {
                 console.error("Firebase initialization error: ", error);
             }
         }
         
         async function handleStudentSignIn() {
+            console.log("Student sign-in button clicked.");
              const provider = new GoogleAuthProvider();
              try {
                  await signInWithPopup(auth, provider);
-                 await checkUserRoleAndRedirect();
+                 // The onAuthStateChanged listener will handle the redirection
              } catch (error) {
                  console.error("Google sign-in error: ", error);
+                 showModal("Google Sign-In failed. Please try again.");
              }
         }
 
         async function handleTeacherSignIn() {
+            console.log("Teacher sign-in button clicked.");
             const provider = new GoogleAuthProvider();
             try {
                 await signInWithPopup(auth, provider);
-                await checkUserRoleAndRedirect();
+                 // The onAuthStateChanged listener will handle the redirection
             } catch (error) {
                 console.error("Google sign-in error: ", error);
+                showModal("Google Sign-In failed. Please try again.");
             }
         }
 
         async function checkUserRoleAndRedirect() {
-             if (!userId) return;
-
-             const userDocRef = doc(db, `artifacts/${appId}/users`, userId);
-             const userDocSnap = await getDoc(userDocRef);
-             let userRole = userDocSnap.exists() ? userDocSnap.data().role : null;
-             teacherId = userDocSnap.exists() ? userDocSnap.data().teacherId : null;
-
-             if (!userRole) {
-                 const teachersRef = doc(db, `artifacts/${appId}/teachers`, userId);
-                 const teachersSnap = await getDoc(teachersRef);
-                 isTeacher = teachersSnap.exists();
-                 userRole = isTeacher ? 'teacher' : 'student';
-                 await setDoc(userDocRef, { role: userRole }, { merge: true });
-             } else {
-                 isTeacher = userRole === 'teacher';
+             if (!userId || !db || !isAuthReady) {
+                 console.log("checkUserRoleAndRedirect called before auth is ready. Skipping.");
+                 return;
              }
+             
+             console.log("Checking user role for ID:", userId);
 
-             if (isTeacher) {
-                 await loadAllStudentProgress();
-                 showPage('teacher-portal-page');
+             try {
+                 const userDocRef = doc(db, `artifacts/${appId}/users`, userId);
+                 const userDocSnap = await getDoc(userDocRef);
+                 let userRole = userDocSnap.exists() ? userDocSnap.data().role : null;
+                 teacherId = userDocSnap.exists() ? userDocSnap.data().teacherId : null;
+
+                 if (!userRole) {
+                     const teachersRef = doc(db, `artifacts/${appId}/teachers`, userId);
+                     const teachersSnap = await getDoc(teachersRef);
+                     isTeacher = teachersSnap.exists();
+                     userRole = isTeacher ? 'teacher' : 'student';
+                     await setDoc(userDocRef, { role: userRole, email: userEmail }, { merge: true });
+                     console.log(`User role determined as: ${userRole}`);
+                 } else {
+                     isTeacher = userRole === 'teacher';
+                     console.log(`User role fetched as: ${userRole}`);
+                 }
+
                  navBar.classList.remove('hidden');
-                 document.getElementById('nav-teacher-portal').style.display = 'block';
-                 document.getElementById('nav-student').style.display = 'none';
-                 document.getElementById('nav-flashcard').style.display = 'none';
-                 document.getElementById('nav-progress').style.display = 'none';
-             } else {
-                 await loadAssignments();
-                 await loadStudentProgress();
-                 showPage('student-page');
-                 navBar.classList.remove('hidden');
-                 document.getElementById('nav-teacher-portal').style.display = 'none';
-                 document.getElementById('nav-student').style.display = 'block';
-                 document.getElementById('nav-flashcard').style.display = 'block';
-                 document.getElementById('nav-progress').style.display = 'block';
+                 if (isTeacher) {
+                     navTeacherPortal.classList.remove('hidden');
+                     navStudent.classList.add('hidden');
+                     navFlashcard.classList.add('hidden');
+                     navProgress.classList.add('hidden');
+                     await loadAllStudentProgress();
+                     showPage('teacher-portal-page');
+                 } else {
+                     navTeacherPortal.classList.add('hidden');
+                     navStudent.classList.remove('hidden');
+                     navFlashcard.classList.remove('hidden');
+                     navProgress.classList.remove('hidden');
+                     await loadAssignments();
+                     await loadStudentProgress();
+                     showPage('student-page');
+                 }
+             } catch (e) {
+                 console.error("Error in checkUserRoleAndRedirect: ", e);
              }
         }
 
         function showPage(pageId) {
+            console.log("Showing page:", pageId);
+            // Clean up old listeners
+            progressUnsubscribers.forEach(unsub => unsub());
+            progressUnsubscribers = [];
+            
             pages.forEach(page => page.classList.remove('active'));
             document.getElementById(pageId).classList.add('active');
             navButtons.forEach(btn => btn.classList.remove('active'));
@@ -620,13 +649,11 @@
         }
 
         async function loadAssignments() {
-            if (!teacherId) {
-                 assignmentsList.innerHTML = `<p class="text-gray-500 text-center">You are not enrolled in a class.</p>`;
-                 return;
-            }
+            if (!teacherId || !db) return;
+            console.log("Loading assignments for teacher ID:", teacherId);
             try {
                 const q = query(collection(db, `artifacts/${appId}/public/teacher_assignments`), where("teacherId", "==", teacherId));
-                onSnapshot(q, (querySnapshot) => {
+                const unsub = onSnapshot(q, (querySnapshot) => {
                      assignmentsList.innerHTML = '';
                      if (querySnapshot.empty) {
                         assignmentsList.innerHTML = `<p class="text-gray-500 text-center">No assignments yet.</p>`;
@@ -650,20 +677,23 @@
                  }, (error) => {
                      console.error("Error listening to assignments: ", error);
                  });
+                 progressUnsubscribers.push(unsub);
             } catch(e) {
                 console.error("Error fetching assignments: ", e);
             }
         }
         
         async function loadStudentProgress() {
+            if (!isAuthReady) return;
             cardProgressList.innerHTML = '';
             let masteredCount = 0;
 
             if (auth.currentUser && !auth.currentUser.isAnonymous) {
                 // Firestore logic for signed-in users
+                if (!db) return;
                 try {
                     const q = collection(db, `artifacts/${appId}/users/${userId}/progress`);
-                    onSnapshot(q, (querySnapshot) => {
+                    const unsub = onSnapshot(q, (querySnapshot) => {
                         cardProgressList.innerHTML = '';
                         masteredCount = 0;
                         querySnapshot.forEach((doc) => {
@@ -678,11 +708,15 @@
                             p.className = isMastered ? 'text-green-600' : 'text-red-600';
                             cardProgressList.appendChild(p);
                         });
+                        if (querySnapshot.empty) {
+                             cardProgressList.innerHTML = `<p class="text-gray-500">Practice more to see your progress here!</p>`;
+                        }
                         masteredCountDisplay.textContent = masteredCount;
                         masteredCountDisplayProgress.textContent = masteredCount;
                     }, (error) => {
                         console.error("Error listening to progress: ", error);
                     });
+                    progressUnsubscribers.push(unsub);
                 } catch (e) {
                     console.error("Error loading progress from Firestore: ", e);
                 }
@@ -713,25 +747,43 @@
         }
 
         async function loadAllStudentProgress() {
-            if (!isTeacher) return;
+            if (!isTeacher || !db) return;
+            console.log("Loading all student progress for teacher ID:", userId);
             try {
-                const q = query(collection(db, `artifacts/${appId}/public/student_progress_for_teacher`), where("teacherId", "==", userId));
-                onSnapshot(q, (querySnapshot) => {
+                const q = query(collection(db, `artifacts/${appId}/users`), where("teacherId", "==", userId));
+                const unsubStudents = onSnapshot(q, (querySnapshot) => {
                     studentList.innerHTML = '';
                     if (querySnapshot.empty) {
                         studentList.innerHTML = `<p class="text-gray-500 text-center">No students have enrolled yet.</p>`;
                         return;
                     }
+                    
                     querySnapshot.forEach((doc) => {
                         const studentData = doc.data();
-                        const div = document.createElement('div');
-                        div.className = 'p-4 bg-gray-100 rounded-lg shadow-sm mb-2';
-                        div.innerHTML = `<p class="font-bold">Student: ${studentData.studentEmail || studentData.studentId}</p><p>Mastery Score: ${studentData.masteryScore}</p>`;
-                        studentList.appendChild(div);
+                        const studentId = doc.id;
+                        const progressQ = collection(db, `artifacts/${appId}/users/${studentId}/progress`);
+                        
+                        const unsubProgress = onSnapshot(progressQ, (progressSnapshot) => {
+                            let masteredCount = 0;
+                            progressSnapshot.forEach(progressDoc => {
+                                if (progressDoc.data().mastered) {
+                                    masteredCount++;
+                                }
+                            });
+                            
+                            const div = document.createElement('div');
+                            div.className = 'p-4 bg-gray-100 rounded-lg shadow-sm mb-2';
+                            div.innerHTML = `<p class="font-bold">Student: ${studentData.email || studentId}</p><p>Mastered Cards: ${masteredCount}</p>`;
+                            studentList.appendChild(div);
+                        }, (error) => {
+                             console.error("Error listening to student's progress: ", error);
+                        });
+                        progressUnsubscribers.push(unsubProgress);
                     });
                 }, (error) => {
-                    console.error("Error listening to teacher's student progress: ", error);
+                    console.error("Error listening to enrolled students: ", error);
                 });
+                progressUnsubscribers.push(unsubStudents);
             } catch (e) {
                 console.error("Error loading all student progress: ", e);
             }
@@ -760,6 +812,7 @@
         }
 
         function flipCard() {
+            console.log("Flip card button clicked.");
             isFlipped = !isFlipped;
             if (isFlipped) {
                 flashcard.classList.add('flipped');
@@ -769,6 +822,7 @@
         }
 
         function nextCard() {
+            console.log("Next card button clicked.");
             isFlipped = false;
             flashcard.classList.remove('flipped');
             const currentDeck = decks[currentDeckName];
@@ -782,18 +836,21 @@
         }
 
         async function gotIt() {
+            console.log("Got It! button clicked.");
+            if (!isAuthReady) {
+                 showModal("Please wait for the app to initialize.");
+                 return;
+            }
             const currentCard = decks[currentDeckName][currentCardIndex];
             if (auth.currentUser.isAnonymous) {
                 localProgress[btoa(currentCard.english)] = { mastered: true, english: currentCard.english };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(localProgress));
                 loadStudentProgress(); // Update UI
             } else {
-                const progressRef = doc(db, `artifacts/${appId}/users/${userId}/progress`, btoa(currentCard.english));
                 try {
+                    if (!db) return;
+                    const progressRef = doc(db, `artifacts/${appId}/users/${userId}/progress`, btoa(currentCard.english));
                     await setDoc(progressRef, { mastered: true, english: currentCard.english, lastPracticed: new Date() }, { merge: true });
-                    if (teacherId) {
-                        await updateTeacherProgress(1); // Increment mastery score
-                    }
                 } catch (e) {
                     console.error("Error updating progress: ", e);
                 }
@@ -802,18 +859,21 @@
         }
 
         async function needMorePractice() {
+            console.log("Need more practice button clicked.");
+            if (!isAuthReady) {
+                 showModal("Please wait for the app to initialize.");
+                 return;
+            }
             const currentCard = decks[currentDeckName][currentCardIndex];
             if (auth.currentUser.isAnonymous) {
                 localProgress[btoa(currentCard.english)] = { mastered: false, english: currentCard.english };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(localProgress));
                 loadStudentProgress(); // Update UI
             } else {
-                const progressRef = doc(db, `artifacts/${appId}/users/${userId}/progress`, btoa(currentCard.english));
                 try {
+                    if (!db) return;
+                    const progressRef = doc(db, `artifacts/${appId}/users/${userId}/progress`, btoa(currentCard.english));
                     await setDoc(progressRef, { mastered: false, english: currentCard.english, lastPracticed: new Date() }, { merge: true });
-                    if (teacherId) {
-                        await updateTeacherProgress(-1); // Decrement mastery score
-                    }
                 } catch (e) {
                     console.error("Error updating progress: ", e);
                 }
@@ -821,27 +881,8 @@
             nextCard();
         }
 
-        async function updateTeacherProgress(change) {
-             const progressRef = doc(db, `artifacts/${appId}/public/student_progress_for_teacher`, userId);
-             const progressSnap = await getDoc(progressRef);
-             let masteryScore = 0;
-
-             if (progressSnap.exists()) {
-                 masteryScore = progressSnap.data().masteryScore || 0;
-             }
-
-             masteryScore += change;
-
-             await setDoc(progressRef, {
-                 teacherId: teacherId,
-                 studentId: userId,
-                 studentEmail: userEmail,
-                 masteryScore: masteryScore,
-                 lastUpdate: new Date()
-             }, { merge: true });
-        }
-
         function toggleDeck() {
+            console.log("Toggle deck button clicked.");
             const deckNames = Object.keys(decks);
             const currentIndex = deckNames.indexOf(currentDeckName);
             const nextIndex = (currentIndex + 1) % deckNames.length;
@@ -854,6 +895,7 @@
         }
 
         function toggleSkillMode() {
+            console.log("Toggle skill mode button clicked.");
             isBeginnerMode = !isBeginnerMode;
             skillModeText.textContent = isBeginnerMode ? 'Mode: Beginner' : 'Mode: Intermediate';
             isFlipped = false;
@@ -863,7 +905,8 @@
         
         // Teacher Portal Logic
         async function generateRandomCode() {
-            if (!isTeacher) {
+            console.log("Generate random code button clicked.");
+            if (!isTeacher || !db) {
                 showModal("You must be a signed-in teacher to perform this action.");
                 return;
             }
@@ -884,7 +927,8 @@
         }
 
         async function setCustomCode() {
-            if (!isTeacher) {
+            console.log("Set custom code button clicked.");
+            if (!isTeacher || !db) {
                 showModal("You must be a signed-in teacher to perform this action.");
                 return;
             }
@@ -909,7 +953,8 @@
 
 
         async function enrollInClass() {
-             if (!userId || auth.currentUser.isAnonymous) {
+             console.log("Enroll button clicked.");
+             if (!userId || auth.currentUser.isAnonymous || !db) {
                  showModal("You must be signed in to enroll in a class. Please sign in with Google.");
                  return;
              }
@@ -941,7 +986,8 @@
          }
         
         async function addCardToCustomDeck() {
-            if (!isTeacher) return;
+            console.log("Add card button clicked.");
+            if (!isTeacher || !db) return;
             const english = englishInput.value.trim();
             const romanized = romanizedInput.value.trim();
             const telugu = teluguInput.value.trim();
@@ -974,7 +1020,8 @@
         }
         
         async function generateCardsFromLLM() {
-             if (!isTeacher) return;
+             console.log("Generate LLM button clicked.");
+             if (!isTeacher || !db) return;
              const prompt = llmPromptInput.value.trim();
              if (!prompt) {
                  showModal("Please enter a prompt for the AI.");
@@ -1075,19 +1122,31 @@
             });
         });
 
-        studentButton.addEventListener('click', () => showPage('student-sign-in-page'));
-        teacherButton.addEventListener('click', () => showPage('teacher-sign-in-page'));
+        studentButton.addEventListener('click', () => {
+            console.log("Student button clicked.");
+            showPage('student-sign-in-page');
+        });
+        teacherButton.addEventListener('click', () => {
+            console.log("Teacher button clicked.");
+            showPage('teacher-sign-in-page');
+        });
         googleSignInStudentButton.addEventListener('click', handleStudentSignIn);
         googleSignInTeacherButton.addEventListener('click', handleTeacherSignIn);
         guestButton.addEventListener('click', async () => {
+             console.log("Guest button clicked.");
              await signInAnonymously(auth);
-             loadStudentProgress();
-             showPage('student-page');
         });
-        backToAuthStudentButton.addEventListener('click', () => showPage('auth-page'));
-        backToAuthTeacherButton.addEventListener('click', () => showPage('auth-page'));
+        backToAuthStudentButton.addEventListener('click', () => {
+            console.log("Back to auth button clicked (student).");
+            showPage('auth-page');
+        });
+        backToAuthTeacherButton.addEventListener('click', () => {
+            console.log("Back to auth button clicked (teacher).");
+            showPage('auth-page');
+        });
 
         practiceVocabularyButton.addEventListener('click', () => {
+             console.log("Practice vocabulary button clicked.");
              currentDeckName = 'vocabulary';
              currentCardIndex = 0;
              decks = { ...builtInDecks, custom: [] };
@@ -1097,6 +1156,7 @@
         });
 
         practiceVerbsButton.addEventListener('click', () => {
+             console.log("Practice verbs button clicked.");
              currentDeckName = 'verbs';
              currentCardIndex = 0;
              decks = { ...builtInDecks, custom: [] };
