@@ -443,10 +443,10 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, addDoc, setDoc, onSnapshot, collection, query, where, getDocs, getDoc, setLogLevel, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = JSON.parse(__firebase_config);
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
         const LOCAL_STORAGE_KEY = `${appId}-guest-progress`;
@@ -558,6 +558,21 @@
                     }
                 });
                 
+                // Sign in with the custom token if provided, otherwise anonymously
+                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                if (initialAuthToken) {
+                    try {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                        console.log("Signed in with custom token.");
+                    } catch (error) {
+                        console.error("Error signing in with custom token, signing in anonymously instead.", error);
+                        await signInAnonymously(auth);
+                    }
+                } else {
+                    console.log("No initial auth token found, signing in anonymously.");
+                    await signInAnonymously(auth);
+                }
+
             } catch (error) {
                 console.error("Firebase initialization error: ", error);
             }
